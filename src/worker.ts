@@ -1,13 +1,13 @@
 import { WindowState, WorkerMessage } from "./types";
 
-let client: MessagePort[] = [];
+let clients: { port: MessagePort, id: number }[] = [];
 let nextId: number = 0;
 let windows: { windowState: WindowState; id: number; port: MessagePort }[] = [];
 
 onconnect = ({ ports }: MessageEvent<WorkerMessage>) => {
-  const port = ports[0];
-  client.push(port);
 
+  const port = ports[0];
+  console.log('onconnect',clients);
   const sendSync = () => {
     windows.forEach((w) =>
       w.port.postMessage({
@@ -17,17 +17,18 @@ onconnect = ({ ports }: MessageEvent<WorkerMessage>) => {
     );
   };
   nextId += 1;
+  clients.push({ port, id: nextId });
 
   port.onmessage = function (event: MessageEvent<WorkerMessage>) {
     const msg = event.data;
     switch (msg.action) {
       case "connected": {
+        console.log("connected", { nextId, msg, port });
         windows.push({
           id: nextId,
           windowState: msg.payload.state,
           port,
         });
-        console.log("connected msg", { msg });
         const message: WorkerMessage = {
           action: "attributedId",
           payload: { id: nextId },
@@ -40,6 +41,7 @@ onconnect = ({ ports }: MessageEvent<WorkerMessage>) => {
       }
       case "windowUnloaded": {
         const id = msg.payload.id;
+        clients = clients.filter(client => client.id !== id)
         windows = windows.filter((windowItem) => windowItem.id !== id);
         sendSync();
         break;
@@ -57,8 +59,11 @@ onconnect = ({ ports }: MessageEvent<WorkerMessage>) => {
   };
 
   port.onmessageerror = function () {
-    console.error("oupsi doupsi");
+    console.error("oupsi doupsi!!!!!!!!!!");
   };
 };
 
-self.addEventListener("beforeunload", () => console.log("oupsi"));
+self.addEventListener("beforeunload", (event) => {
+  console.warn("oupsi !!!!!!!");
+  event.returnValue = `Are you sure you want to leave?`;
+});

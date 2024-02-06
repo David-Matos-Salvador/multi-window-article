@@ -5,13 +5,13 @@ type StateWithId = { id: number; windowState: WindowState };
 type OnSyncCallbackFunction = (allWindows: StateWithId[]) => void;
 
 export class WindowWorkerHandler {
-  windows: StateWithId[] = [];
   currentWindow: WindowState = getCurrentWindowState();
   id: number;
   onSyncCallbacks: OnSyncCallbackFunction[] = [];
   worker: SharedWorker;
 
   constructor() {
+    /* https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta#resolving_a_file_relative_to_the_current_one */
     this.worker = new SharedWorker(new URL("worker.ts", import.meta.url));
     const connectedMessage: WorkerMessage = {
       action: "connected",
@@ -27,22 +27,24 @@ export class WindowWorkerHandler {
           break;
         }
         case "sync": {
+          console.log('sync ====>', { msg });
           this.onSyncCallback(msg.payload.allWindows);
           break;
         }
       }
     };
+    /* https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event */
     window.addEventListener("beforeunload", () => {
       this.worker.port.postMessage({
         action: "windowUnloaded",
         payload: { id: this.id },
-      } satisfies WorkerMessage);
+      } satisfies WorkerMessage); /* https://www.freecodecamp.org/news/typescript-satisfies-operator/  */
     });
+
   }
 
   private onSyncCallback(allWindows: StateWithId[]) {
     this.currentWindow = getCurrentWindowState();
-    this.windows = allWindows;
     this.onSyncCallbacks.forEach((cb) => cb(allWindows));
   }
 
